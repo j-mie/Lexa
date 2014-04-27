@@ -11,13 +11,24 @@ namespace Lexa
 {
     class Program
     {
+        public struct Site
+        {
+            public int Index;
+            public string SiteName;
+            public Site(int index, string site)
+            {
+                Index = index;
+                SiteName = site;
+            }
+        }
+
+
         static void Main(string[] args)
         {
             var webclientList = GenerateWebClients(1000);
             var threadlist = GenerateThreads(1000, webclientList);
 
-            threadlist[2].Start();
-
+            var sites = new Dictionary<Site, bool>();
             using (var sw = new StreamReader(@"top-1m.csv"))
             {
                 foreach (string ln in sw.ReadToEnd().Split('\n'))
@@ -26,10 +37,10 @@ namespace Lexa
                     {
                         int lnno = Convert.ToInt32(ln.Split(',')[0]);
                         string site = ln.Split(',')[1];
-                        Console.WriteLine("{0} : {1}", lnno, site);
+                        Site s = new Site(lnno, site);
                     }
                 }
-            }            
+            }
 
             Console.WriteLine("Done");
             Console.ReadLine();
