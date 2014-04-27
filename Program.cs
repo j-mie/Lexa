@@ -15,7 +15,6 @@ namespace Lexa
         {
             public int Index;
             public string SiteName;
-            public int Progress { get; set; }
             public WebHeaderCollection Headers{ get; set; }
             public Site(int index, string site)
             {
@@ -55,18 +54,20 @@ namespace Lexa
         {
             var tasks = sites.Select(site => ProcessSite(site)).ToList();
             await Task.WhenAll(tasks);
-            Console.WriteLine("site complete");
+            Console.WriteLine("Tasks complete");
         }
 
         private static async Task<Site> ProcessSite(Site site)
         {
-            Console.WriteLine(site.SiteName);
+            Console.WriteLine("Starting: {0}", site.SiteName);
             WebClient wc = new WebClient();
-            wc.Proxy = GlobalProxySelection.GetEmptyWebProxy();
+            wc.Proxy = null;
             
-            var data = await wc.DownloadStringTaskAsync(new Uri(site.SiteName));
+            var data = await wc.DownloadStringTaskAsync(new Uri("http://" + site.SiteName));
 
             site.Headers = wc.ResponseHeaders;
+
+            Console.WriteLine("Completed: " + site.SiteName);
             return site;
         }
     }
