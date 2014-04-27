@@ -5,6 +5,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace Lexa
 {
@@ -14,10 +15,21 @@ namespace Lexa
         {
             var webclientList = GenerateWebClients(1000);
             var threadlist = GenerateThreads(1000, webclientList);
-            
+
             threadlist[2].Start();
 
-
+            using (var sw = new StreamReader(@"top-1m.csv"))
+            {
+                foreach (string ln in sw.ReadToEnd().Split('\n'))
+                {
+                    if (ln != "")
+                    {
+                        int lnno = Convert.ToInt32(ln.Split(',')[0]);
+                        string site = ln.Split(',')[1];
+                        Console.WriteLine("{0} : {1}", lnno, site);
+                    }
+                }
+            }            
 
             Console.WriteLine("Done");
             Console.ReadLine();
