@@ -11,10 +11,12 @@ namespace Lexa
 {
     class Program
     {
-        public struct Site
+        public class Site
         {
             public int Index;
             public string SiteName;
+            public int Progress { get; set; }
+            public WebHeaderCollection Headers{ get; set; }
             public Site(int index, string site)
             {
                 Index = index;
@@ -25,10 +27,8 @@ namespace Lexa
 
         static void Main(string[] args)
         {
-            var webclientList = GenerateWebClients(1000);
-            var threadlist = GenerateThreads(1000, webclientList);
+            var sites = new List<Site>();
 
-            var sites = new Dictionary<Site, bool>();
             using (var sw = new StreamReader(@"top-1m.csv"))
             {
                 foreach (string ln in sw.ReadToEnd().Split('\n'))
@@ -38,49 +38,36 @@ namespace Lexa
                         int lnno = Convert.ToInt32(ln.Split(',')[0]);
                         string site = ln.Split(',')[1];
                         Site s = new Site(lnno, site);
+                        sites.Add(s);
                     }
                 }
             }
 
+            ServicePointManager.DefaultConnectionLimit = int.MaxValue;
+            
+            runLoop(sites);
+            
             Console.WriteLine("Done");
             Console.ReadLine();
         }
 
-        static List<WebClient> GenerateWebClients(int amount)
+        private static async void runLoop(List<Site> sites)
         {
-            ServicePointManager.DefaultConnectionLimit = int.MaxValue;
-
-            var webClientList = new List<WebClient>();
-
-            for (int i = 0; i < amount; i++)
-            {
-                var webclient = new WebClient();
-                webclient.Proxy = null;
-                webClientList.Add(webclient);
-            }
-            return webClientList;
+            var tasks = sites.Select(site => ProcessSite(site)).ToList();
+            await Task.WhenAll(tasks);
+            Console.WriteLine("site complete");
         }
 
-        static List<Thread> GenerateThreads(int amount, List<WebClient> webclientList)
+        private static async Task<Site> ProcessSite(Site site)
         {
-            var threadList = new List<Thread>();
+            Console.WriteLine(site.SiteName);
+            WebClient wc = new WebClient();
+            wc.Proxy = GlobalProxySelection.GetEmptyWebProxy();
+            
+            var data = await wc.DownloadStringTaskAsync(new Uri(site.SiteName));
 
-            for (int i = 0; i < amount; i++)
-            {
-                Console.WriteLine(i);
-                int temp = i;
-                var thread = new Thread(() => ThreadWorker(temp, webclientList[temp]));
-
-                threadList.Add(thread);
-            }
-            return threadList;
-        }
-
-
-
-        static void ThreadWorker(object i, WebClient webclient)
-        {
-            Console.WriteLine(i);   
+            site.Headers = wc.ResponseHeaders;
+            return site;
         }
     }
 }
