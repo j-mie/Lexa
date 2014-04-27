@@ -12,8 +12,8 @@ namespace Lexa
     {
         static void Main(string[] args)
         {
-            var webclientList = generateWebClients(1000);
-            var threadlist = generateThreads(1000, webclientList);
+            var webclientList = GenerateWebClients(1000);
+            var threadlist = GenerateThreads(1000, webclientList);
             
             threadlist[2].Start();
 
@@ -23,7 +23,7 @@ namespace Lexa
             Console.ReadLine();
         }
 
-        static List<WebClient> generateWebClients(int amount)
+        static List<WebClient> GenerateWebClients(int amount)
         {
             ServicePointManager.DefaultConnectionLimit = int.MaxValue;
 
@@ -38,7 +38,7 @@ namespace Lexa
             return webClientList;
         }
 
-        static List<Thread> generateThreads(int amount, List<WebClient> webclientList)
+        static List<Thread> GenerateThreads(int amount, List<WebClient> webclientList)
         {
             var threadList = new List<Thread>();
 
@@ -46,7 +46,7 @@ namespace Lexa
             {
                 Console.WriteLine(i);
                 int temp = i;
-                Thread thread = new Thread(() => threadWorker(temp, webclientList[temp]));
+                var thread = new Thread(() => ThreadWorker(temp, webclientList[temp]));
 
                 threadList.Add(thread);
             }
@@ -55,9 +55,9 @@ namespace Lexa
 
 
 
-        static void threadWorker(object i, WebClient webclient)
+        static void ThreadWorker(object i, WebClient webclient)
         {
-            Console.WriteLine(i);
+            Console.WriteLine(i);   
         }
     }
 }
