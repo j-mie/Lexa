@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
@@ -7,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.IO;
+using Npgsql;
 
 namespace Lexa
 {
@@ -48,6 +50,9 @@ namespace Lexa
 
         private static void Main(string[] args)
         {
+            Npgsql.NpgsqlConnection con = new NpgsqlConnection("");
+            con.Open();
+
             var sites = new List<Site>();
 
             ServicePointManager.DefaultConnectionLimit = int.MaxValue;
@@ -70,7 +75,20 @@ namespace Lexa
                 Console.WriteLine("{0} : {1} : {2}", site.Index, site.SiteName, site.Headers[1]);
             }
 
-            Console.WriteLine("Done!!!!!");
+            Console.WriteLine("Site scraping complete. Now uploading to Database");
+
+            using (var command = con.CreateCommand())
+            {
+                command.CommandText = "INSERT INTO sites (site_id, site_url, site_error, site_data) VALUES (:id, :url, :error, :data)";
+
+                var idPara = command.CreateParameter();
+                idPara.ParameterName = "id";
+                idPara.Value = "whatever";
+                command.Parameters.Add(idPara);
+
+                command.ExecuteNonQuery();
+            }   
+           
             Console.ReadLine();
         }
 
