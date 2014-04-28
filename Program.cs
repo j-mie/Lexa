@@ -61,13 +61,16 @@ namespace Lexa
 
             public void AddHeaders(WebHeaderCollection headers)
             {
-                Headers = new List<Header>();
-                for (int i = 0; i < headers.Count; ++i)
+                if (headers != null)
                 {
-                    string header = headers.GetKey(i);
-                    foreach (string value in headers.GetValues(i))
+                    Headers = new List<Header>();
+                    for (int i = 0; i < headers.Count; ++i)
                     {
-                        Headers.Add(new Header(header, value));
+                        string header = headers.GetKey(i);
+                        foreach (string value in headers.GetValues(i))
+                        {
+                            Headers.Add(new Header(header, value));
+                        }
                     }
                 }
             }
@@ -132,12 +135,13 @@ namespace Lexa
         private static async Task<List<Site>>  ListProcessor(List<Site> sites, int taskID, int totalTasks, MongoCollection<Site> mongoCollection)
         {
             Console.WriteLine("Running Task {0} of {1}", taskID, totalTasks);
-            var tasks = sites.Select(site => ProcessSite(site, taskID, mongoCollection)).ToList();
+            var tasks = sites.Select(site => ProcessSite(site, taskID)).ToList();
             await Task.WhenAll(tasks);
+            mongoCollection.InsertBatch(tasks.Select(t => t.Result).ToList());
             return tasks.Select(t => t.Result).ToList();
         }
 
-        private static async Task<Site> ProcessSite(Site site, int taskID, MongoCollection<Site> mongoCollection)
+        private static async Task<Site> ProcessSite(Site site, int taskID)
         {
             var wc = new WebClient();
             wc.Proxy = null;
@@ -154,7 +158,6 @@ namespace Lexa
                 {
                     wc.CancelAsync();
                     site.Error = "Timed out";
-                    mongoCollection.Insert(site);
                     return site;
                 }
             }
@@ -166,7 +169,6 @@ namespace Lexa
 
             site.AddHeaders(wc.ResponseHeaders);
             Console.WriteLine("(T:{0} - Site: {1}) Completed {2}", taskID + 1,site.Index, site.SiteName);
-            mongoCollection.Insert(site);
             return site;
         }
     }
