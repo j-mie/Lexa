@@ -11,6 +11,16 @@ namespace Lexa
 {
     class Program
     {
+        //Thanks to -- http://stackoverflow.com/a/22425211/1365365
+        public static void WriteToBinaryFile<T>(string filePath, T objectToWrite, bool append = false)
+        {
+            using (Stream stream = File.Open(filePath, append ? FileMode.Append : FileMode.Create))
+            {
+                var binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+                binaryFormatter.Serialize(stream, objectToWrite);
+            }
+        }
+
         public class Site
         {
             public int Index;
@@ -25,8 +35,8 @@ namespace Lexa
             }
         }
 
-        public static int Complete = 0;
         public static List<TimeSpan> TimeSpans = new List<TimeSpan>(); 
+        public static List<Site> ProcessedSites = new List<Site>();
         static void Main(string[] args)
         {
             var sites = new List<Site>();
@@ -63,11 +73,17 @@ namespace Lexa
             Console.WriteLine(start.ToString());
             Console.WriteLine("Running Task {0} of {1}", taskID, totalTasks);
             var tasks = sites.Select(site => ProcessSite(site, taskID)).ToList();
+            
             await Task.WhenAll(tasks);
             
             var end = DateTime.Now;
             var ts = end - start;
             TimeSpans.Add(ts);
+
+            foreach (var task in tasks)
+            {
+                ProcessedSites.Add(task.Result);
+            }
 
             Console.WriteLine("Tasks complete");
         }
