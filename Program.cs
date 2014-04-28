@@ -8,7 +8,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.IO;
-using Npgsql;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Driver;
 
 namespace Lexa
 {
@@ -38,11 +40,24 @@ namespace Lexa
             public string Data;
             public string SiteName;
             public string Error;
-            public WebHeaderCollection Headers{ get; set; }
+            public Dictionary<String, String> Headers;
             public Site(int index, string site)
             {
                 Index = index;
                 SiteName = site;
+            }
+
+            public void AddHeaders(WebHeaderCollection headers)
+            {
+                Headers = new Dictionary<string, string>();
+                for (int i = 0; i < headers.Count; ++i)
+                {
+                    string header = headers.GetKey(i);
+                    foreach (string value in headers.GetValues(i))
+                    {
+                        Headers.Add(header, value);
+                    }
+                }
             }
         }
 
@@ -50,8 +65,12 @@ namespace Lexa
 
         private static void Main(string[] args)
         {
-            Npgsql.NpgsqlConnection con = new NpgsqlConnection("");
-            con.Open();
+            var connectionString = "mongodb://";
+            var client = new MongoClient(connectionString);
+            var server = client.GetServer();
+            var database = server.GetDatabase("test"); // "test" is the name of the database
+
+            MongoCollection<Site> mongoSiteCollection = database.GetCollection<Site>("data");
 
             var sites = new List<Site>();
 
@@ -68,31 +87,14 @@ namespace Lexa
             //sites.Add(new Site(4, "bing.com"));
             //sites.Add(new Site(5, "reddit.com"));
 
-            var done = scrapeTask(sites);
-
-            foreach (var site in done)
-            {
-                Console.WriteLine("{0} : {1} : {2}", site.Index, site.SiteName, site.Headers[1]);
-            }
+            var done = scrapeTask(sites, mongoSiteCollection);
 
             Console.WriteLine("Site scraping complete. Now uploading to Database");
-
-            using (var command = con.CreateCommand())
-            {
-                command.CommandText = "INSERT INTO sites (site_id, site_url, site_error, site_data) VALUES (:id, :url, :error, :data)";
-
-                var idPara = command.CreateParameter();
-                idPara.ParameterName = "id";
-                idPara.Value = "whatever";
-                command.Parameters.Add(idPara);
-
-                command.ExecuteNonQuery();
-            }   
            
             Console.ReadLine();
         }
 
-        private static List<Site> scrapeTask(List<Site> sites)
+        private static List<Site> scrapeTask(List<Site> sites, MongoCollection<Site> mongoCollection)
         {
             const int sitesPerATask = 100;
             const int sleepTime = 1;
@@ -107,7 +109,7 @@ namespace Lexa
             for (var i = 0; i < taskCount; i++)
             {
                 var taskList = sites.Skip(i * sitesPerATask).Take(sitesPerATask);
-                taskResults.Add(ListProcessor(taskList.ToList(), i, taskCount).Result);
+                taskResults.Add(ListProcessor(taskList.ToList(), i, taskCount, mongoCollection).Result);
                 Thread.Sleep(sleepTime);
                 Console.WriteLine("{0} minutes remaining", sw.eta(1, taskCount).Minutes);
             }
@@ -115,15 +117,15 @@ namespace Lexa
             return taskResults.SelectMany(siteList => siteList).ToList();
         }
 
-        private static async Task<List<Site>>  ListProcessor(List<Site> sites, int taskID, int totalTasks)
+        private static async Task<List<Site>>  ListProcessor(List<Site> sites, int taskID, int totalTasks, MongoCollection<Site> mongoCollection)
         {
             Console.WriteLine("Running Task {0} of {1}", taskID, totalTasks);
-            var tasks = sites.Select(site => ProcessSite(site, taskID)).ToList();
+            var tasks = sites.Select(site => ProcessSite(site, taskID, mongoCollection)).ToList();
             await Task.WhenAll(tasks);
             return tasks.Select(t => t.Result).ToList();
         }
 
-        private static async Task<Site> ProcessSite(Site site, int taskID)
+        private static async Task<Site> ProcessSite(Site site, int taskID, MongoCollection<Site> mongoCollection)
         {
             var wc = new WebClient();
             wc.Proxy = null;
@@ -140,6 +142,7 @@ namespace Lexa
                 {
                     wc.CancelAsync();
                     site.Error = "Timed out";
+                    mongoCollection.Insert(site);
                     return site;
                 }
             }
@@ -149,8 +152,9 @@ namespace Lexa
                 site.Error = ex.ToString();
             }
 
-            site.Headers = wc.ResponseHeaders;
+            site.AddHeaders(wc.ResponseHeaders);
             Console.WriteLine("(T:{0} - Site: {1}) Completed {2}", taskID + 1,site.Index, site.SiteName);
+            mongoCollection.Insert(site);
             return site;
         }
     }
