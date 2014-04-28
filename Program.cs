@@ -52,16 +52,16 @@ namespace Lexa
 
             ServicePointManager.DefaultConnectionLimit = int.MaxValue;
 
-            //using (var sw = new StreamReader(@"top-1m.csv"))
-            //{
-            //    sites.AddRange(from ln in sw.ReadToEnd().Split('\n') where ln != "" let lnno = Convert.ToInt32(ln.Split(',')[0]) let site = ln.Split(',')[1] select new Site(lnno, site));
-            //}
+            using (var sw = new StreamReader(@"top-1m.csv"))
+            {
+                sites.AddRange(from ln in sw.ReadToEnd().Split('\n') where ln != "" let lnno = Convert.ToInt32(ln.Split(',')[0]) let site = ln.Split(',')[1] select new Site(lnno, site));
+            }
 
-            sites.Add(new Site(1, "google.com"));
-            sites.Add(new Site(2, "google.co.uk"));
-            sites.Add(new Site(3, "jamiehankins.co.uk"));
-            sites.Add(new Site(4, "bing.com"));
-            sites.Add(new Site(5, "reddit.com"));
+            //sites.Add(new Site(1, "google.com"));
+            //sites.Add(new Site(2, "google.co.uk"));
+            //sites.Add(new Site(3, "jamiehankins.co.uk"));
+            //sites.Add(new Site(4, "bing.com"));
+            //sites.Add(new Site(5, "reddit.com"));
 
             var done = scrapeTask(sites);
 
@@ -76,7 +76,7 @@ namespace Lexa
 
         private static List<Site> scrapeTask(List<Site> sites)
         {
-            const int sitesPerATask = 1;
+            const int sitesPerATask = 100;
             const int sleepTime = 1;
             int taskCount = sites.Count / sitesPerATask;
             Console.WriteLine("Using {0} tasks each crawling a total of {1} sites and sleeping inbetween for {2}MS", taskCount, sitesPerATask, sleepTime);
