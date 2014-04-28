@@ -111,6 +111,7 @@ namespace Lexa
                 }
                 else
                 {
+                    wc.CancelAsync();
                     site.Error = "Timed out";
                     return site;
                 }
