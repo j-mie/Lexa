@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -11,6 +12,24 @@ namespace Lexa
 {
     class Program
     {
+        // Thanks to -- http://stackoverflow.com/a/6822458/1365365
+        public class CMCStopWatch : Stopwatch
+        {
+            /// <summary>
+            /// Gets ETA based off of stopwatch the specified counter.
+            /// </summary>
+            /// <param name="counter">The this is what line you are on</param>
+            /// <param name="counterGoal">this is the total lines</param>
+            /// <returns></returns>
+            public TimeSpan eta(int counter, int counterGoal)
+            {
+                float elapsedMin = ((float)this.ElapsedMilliseconds / 1000) / 60;
+                float minLeft = (elapsedMin / counter) * (counterGoal - counter);
+                TimeSpan ret = TimeSpan.FromMinutes(minLeft);
+                return ret;
+            }
+        }
+
         public class Site
         {
             public int Index;
@@ -27,10 +46,10 @@ namespace Lexa
 
         public static int poo = 0;
 
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
             var sites = new List<Site>();
-            
+
             ServicePointManager.DefaultConnectionLimit = int.MaxValue;
 
             //using (var sw = new StreamReader(@"top-1m.csv"))
@@ -45,44 +64,34 @@ namespace Lexa
             sites.Add(new Site(5, "reddit.com"));
 
             var done = scrapeTask(sites);
-            
+
             foreach (var site in done)
             {
                 Console.WriteLine("{0} : {1} : {2}", site.Index, site.SiteName, site.Headers[1]);
             }
-            
+
             Console.WriteLine("Done!!!!!");
             Console.ReadLine();
-            //TimeSpan avg = new TimeSpan(0);
-            //foreach (var timespan in TimeSpans)
-            //{
-            //    avg = avg + timespan;
-            //}
-            //var start = DateTime.Now;
-            //var eta = (avg.Milliseconds / TimeSpans.Count) * (totalTasks - TimeSpans.Count);
-
-            //var end = DateTime.Now;
-            //var ts = end - start;
-            //TimeSpans.Add(ts);
-
-            //Console.WriteLine("ETA: {0}", eta * 1000);
-            //Console.WriteLine("Tasks complete");
         }
 
         private static List<Site> scrapeTask(List<Site> sites)
         {
             const int sitesPerATask = 1;
-            const int sleepTime = 200;
+            const int sleepTime = 1;
             int taskCount = sites.Count / sitesPerATask;
             Console.WriteLine("Using {0} tasks each crawling a total of {1} sites and sleeping inbetween for {2}MS", taskCount, sitesPerATask, sleepTime);
 
             var taskResults = new List<List<Site>>();
+
+            CMCStopWatch sw = new CMCStopWatch();
+            sw.Start();
 
             for (var i = 0; i < taskCount; i++)
             {
                 var taskList = sites.Skip(i * sitesPerATask).Take(sitesPerATask);
                 taskResults.Add(ListProcessor(taskList.ToList(), i, taskCount).Result);
                 Thread.Sleep(sleepTime);
+                Console.WriteLine("{0} minutes remaining", sw.eta(1, taskCount).Minutes);
             }
 
             return taskResults.SelectMany(siteList => siteList).ToList();
