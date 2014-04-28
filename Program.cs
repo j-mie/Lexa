@@ -21,6 +21,7 @@ namespace Lexa
             }
         }
 
+        [Serializable]
         public class Site
         {
             public int Index;
@@ -54,23 +55,26 @@ namespace Lexa
             int taskCount = sites.Count / sitesPerATask;
             Console.WriteLine("Using {0} tasks each crawling a total of {1} sites and sleeping inbetween for {2}MS", taskCount, sitesPerATask, sleepTime);
 
-            for (var i = 0; i <= taskCount; i++)
+            for (var i = 0; i < taskCount; i++)
             {
                 var taskList = sites.Skip(i * sitesPerATask).Take(sitesPerATask);
                 Console.WriteLine(taskList.Count());
                 runLoop(taskList.ToList(), i, taskCount);
                 Thread.Sleep(sleepTime);
-            }            
-            
-            Console.WriteLine("Done");
+            }
+            while (ProcessedSites.Count != sites.Count)
+            {
+                Thread.Sleep(1000);
+            }
+
+            Console.WriteLine("Done!!!!!");
+            WriteToBinaryFile("output.bin", ProcessedSites);
             Console.ReadLine();
         }
 
         private static async void runLoop(List<Site> sites, int taskID, int totalTasks)
         {
             var start = DateTime.Now;
-
-            Console.WriteLine(start.ToString());
             Console.WriteLine("Running Task {0} of {1}", taskID, totalTasks);
             var tasks = sites.Select(site => ProcessSite(site, taskID)).ToList();
             
@@ -79,6 +83,14 @@ namespace Lexa
             var end = DateTime.Now;
             var ts = end - start;
             TimeSpans.Add(ts);
+
+            TimeSpan avg = new TimeSpan(0);
+            foreach (var timespan in TimeSpans)
+            {
+                avg = avg + timespan;
+            }
+            var eta = (avg.Milliseconds/TimeSpans.Count)*(totalTasks - TimeSpans.Count);
+            Console.WriteLine("ETA: {0}", eta * 1000);
 
             foreach (var task in tasks)
             {
