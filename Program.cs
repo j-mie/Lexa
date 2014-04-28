@@ -34,13 +34,25 @@ namespace Lexa
             }
         }
 
+        public class Header
+        {
+            public string Key;
+            public string Value;
+
+            public Header(string key, string value)
+            {
+                Key = key;
+                Value = value;
+            }
+        }
+
         public class Site
         {
             public int Index;
             public string Data;
             public string SiteName;
             public string Error;
-            public Dictionary<String, String> Headers;
+            public List<Header> Headers;
             public Site(int index, string site)
             {
                 Index = index;
@@ -49,13 +61,13 @@ namespace Lexa
 
             public void AddHeaders(WebHeaderCollection headers)
             {
-                Headers = new Dictionary<string, string>();
+                Headers = new List<Header>();
                 for (int i = 0; i < headers.Count; ++i)
                 {
                     string header = headers.GetKey(i);
                     foreach (string value in headers.GetValues(i))
                     {
-                        Headers.Add(header, value);
+                        Headers.Add(new Header(header, value));
                     }
                 }
             }
@@ -65,7 +77,7 @@ namespace Lexa
 
         private static void Main(string[] args)
         {
-            var connectionString = "mongodb://";
+            var connectionString = "mongodb://108.61.197.197";
             var client = new MongoClient(connectionString);
             var server = client.GetServer();
             var database = server.GetDatabase("test"); // "test" is the name of the database
