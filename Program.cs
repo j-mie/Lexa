@@ -45,9 +45,14 @@ namespace Lexa
             sites.Add(new Site(5, "reddit.com"));
 
             var done = scrapeTask(sites);
+            
+            foreach (var site in done)
+            {
+                Console.WriteLine("{0} : {1} : {2}", site.Index, site.SiteName, site.Headers[1]);
+            }
+            
             Console.WriteLine("Done!!!!!");
             Console.ReadLine();
-
             //TimeSpan avg = new TimeSpan(0);
             //foreach (var timespan in TimeSpans)
             //{
@@ -71,16 +76,16 @@ namespace Lexa
             int taskCount = sites.Count / sitesPerATask;
             Console.WriteLine("Using {0} tasks each crawling a total of {1} sites and sleeping inbetween for {2}MS", taskCount, sitesPerATask, sleepTime);
 
-            var taskResults = new List<Site>();
+            var taskResults = new List<List<Site>>();
 
             for (var i = 0; i < taskCount; i++)
             {
                 var taskList = sites.Skip(i * sitesPerATask).Take(sitesPerATask);
-                taskResults = ListProcessor(taskList.ToList(), i + 1, taskCount).Result;
+                taskResults.Add(ListProcessor(taskList.ToList(), i, taskCount).Result);
                 Thread.Sleep(sleepTime);
             }
 
-            return taskResults;
+            return taskResults.SelectMany(siteList => siteList).ToList();
         }
 
         private static async Task<List<Site>>  ListProcessor(List<Site> sites, int taskID, int totalTasks)
@@ -95,9 +100,8 @@ namespace Lexa
         {
             var wc = new WebClient();
             wc.Proxy = null;
-            
 
-                int timeout = 5000;
+            int timeout = 5000;
             try
             {
                 Task<string> ts = wc.DownloadStringTaskAsync(new Uri("http://" + site.SiteName));
@@ -118,7 +122,7 @@ namespace Lexa
             }
 
             site.Headers = wc.ResponseHeaders;
-            Console.WriteLine("(T:{0} - Site: {1}) Completed {2}", taskID,site.Index, site.SiteName);
+            Console.WriteLine("(T:{0} - Site: {1}) Completed {2}", taskID + 1,site.Index, site.SiteName);
             return site;
         }
     }
