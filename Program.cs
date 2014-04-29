@@ -99,7 +99,7 @@ namespace Lexa
 
         private static void Main(string[] args)
         {
-            var connectionString = "mongodb://108.61.197.197";
+            var connectionString = "mongodb://mongoip";
             var client = new MongoClient(connectionString);
             var server = client.GetServer();
             var database = server.GetDatabase("test"); // "test" is the name of the database
