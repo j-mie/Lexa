@@ -142,7 +142,7 @@ namespace Lexa
         }
 
         private static async Task<Site> ProcessSite(Site site, int taskID)
-        {
+        {   
             var wc = new WebClient();
             wc.Proxy = null;
 
@@ -157,6 +157,7 @@ namespace Lexa
                 else
                 {
                     wc.CancelAsync();
+                    wc.Dispose();
                     site.Error = "Timed out";
                     return site;
                 }
@@ -169,6 +170,7 @@ namespace Lexa
 
             site.AddHeaders(wc.ResponseHeaders);
             Console.WriteLine("(T:{0} - Site: {1}) Completed {2}", taskID + 1,site.Index, site.SiteName);
+            wc.Dispose();
             return site;
         }
     }
