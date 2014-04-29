@@ -46,15 +46,16 @@ namespace Lexa
             }
         }
 
-        public class Site
+        public class Site : IDisposable
         {
-            public int Index;
+            public int? Index;
             public string Data;
             public string SiteName;
             public string Error;
             public List<Header> Headers;
             public Site(int index, string site)
             {
+                this.Dispose(false);
                 Index = index;
                 SiteName = site;
             }
@@ -73,6 +74,24 @@ namespace Lexa
                         }
                     }
                 }
+            }
+
+            public void Dispose()
+            {
+                this.Dispose(true);
+                GC.SuppressFinalize(this);
+            }
+
+            protected virtual void Dispose(bool disposing)
+            {
+                    if (disposing)
+                    {
+                        Data = null;
+                        Headers = null;
+                        Error = null;
+                        SiteName = null;
+                        Index = null;
+                    }
             }
         }
 
@@ -102,21 +121,20 @@ namespace Lexa
             //sites.Add(new Site(4, "bing.com"));
             //sites.Add(new Site(5, "reddit.com"));
 
-            var done = scrapeTask(sites, mongoSiteCollection);
+            scrapeTask(sites, mongoSiteCollection);
 
             Console.WriteLine("Site scraping complete. Now uploading to Database");
            
             Console.ReadLine();
         }
 
-        private static List<Site> scrapeTask(List<Site> sites, MongoCollection<Site> mongoCollection)
+        private static void scrapeTask(List<Site> sites, MongoCollection<Site> mongoCollection)
         {
             const int sitesPerATask = 100;
             const int sleepTime = 1;
             int taskCount = sites.Count / sitesPerATask;
             Console.WriteLine("Using {0} tasks each crawling a total of {1} sites and sleeping inbetween for {2}MS", taskCount, sitesPerATask, sleepTime);
 
-            var taskResults = new List<List<Site>>();
 
             CMCStopWatch sw = new CMCStopWatch();
             sw.Start();
@@ -124,21 +142,23 @@ namespace Lexa
             for (var i = 0; i < taskCount; i++)
             {
                 var taskList = sites.Skip(i * sitesPerATask).Take(sitesPerATask);
-                taskResults.Add(ListProcessor(taskList.ToList(), i, taskCount, mongoCollection).Result);
+                ListProcessor(taskList.ToList(), i, taskCount, mongoCollection);  
                 Thread.Sleep(sleepTime);
                 Console.WriteLine("{0} minutes remaining", sw.eta(1, taskCount).Minutes);
             }
-
-            return taskResults.SelectMany(siteList => siteList).ToList();
         }
 
-        private static async Task<List<Site>>  ListProcessor(List<Site> sites, int taskID, int totalTasks, MongoCollection<Site> mongoCollection)
+        private static async void ListProcessor(List<Site> sites, int taskID, int totalTasks, MongoCollection<Site> mongoCollection)
         {
             Console.WriteLine("Running Task {0} of {1}", taskID, totalTasks);
             var tasks = sites.Select(site => ProcessSite(site, taskID)).ToList();
             await Task.WhenAll(tasks);
             mongoCollection.InsertBatch(tasks.Select(t => t.Result).ToList());
-            return tasks.Select(t => t.Result).ToList();
+            foreach (var task in tasks)
+            {
+                task.Result.Dispose();
+                task.Dispose();
+            }
         }
 
         private static async Task<Site> ProcessSite(Site site, int taskID)
@@ -157,8 +177,8 @@ namespace Lexa
                 else
                 {
                     wc.CancelAsync();
-                    wc.Dispose();
                     site.Error = "Timed out";
+                    wc.Dispose();
                     return site;
                 }
             }
